@@ -51,14 +51,14 @@ Decimal::~Decimal() {
 	delete _prec;
 }
 
-std::ostream& operator << (std::ostream& ostream, const Decimal& num) {
+std::ostream& operator << (std::ostream& ostream, const Decimal& num) noexcept {
 	int* i = new int(0);
 	for (; *i < *num._size; (*i)++) ostream << num._num[*i];
 	delete i;
 	return ostream;
 }
 
-const Decimal& Decimal::operator=(const Decimal& other) {
+const Decimal& Decimal::operator=(const Decimal& other) noexcept {
 	if (this->_num != nullptr) {
 		delete[] this->_num, this->_size;
 	}
@@ -73,7 +73,7 @@ const Decimal& Decimal::operator=(const Decimal& other) {
 	return *this;
 }
 
-Decimal Decimal::operator+(Decimal& other) {
+Decimal Decimal::operator+(Decimal& other) noexcept {
 
 	std::vector<char> fracpart;
 	std::vector<char> intpart;
@@ -172,12 +172,12 @@ Decimal Decimal::operator+(Decimal& other) {
 	return Decimal(num);
 }
 
-Decimal Decimal::operator - (Decimal& other) {
+Decimal Decimal::operator - (Decimal& other) noexcept {
 	if (other._num[0] == '-' && this->_num[0] != '-') return this->Decimal::operator+(other); // second negative then do adding
-
+	return *this;
 }
 
-bool Decimal::operator < (Decimal& other) {
+bool Decimal::operator < (Decimal& other) noexcept {
 
 	if (this->_num[0] == '-' && other._num[0] != '-') return true;			// first - negative, second - non negative
 	else if (this->_num[0] != '-' && other._num[0] == '-') return false;	// first - non negative, second - negative
@@ -254,11 +254,11 @@ bool Decimal::operator < (Decimal& other) {
 		}
 	}
 	else {			//both negative
-
+		return true;
 	}
 }
 
-bool Decimal::operator > (Decimal& other) {
+bool Decimal::operator > (Decimal& other) noexcept {
 
 	if (this->_num[0] == '-' && other._num[0] != '-') return false;			// first - negative, second - non negative
 	else if (this->_num[0] != '-' && other._num[0] == '-') return true;		// first - non negative, second - negative
@@ -336,7 +336,7 @@ bool Decimal::operator > (Decimal& other) {
 	return true;
 }
 
-bool Decimal::operator == (Decimal& other) {
+bool Decimal::operator == (Decimal& other) noexcept {
 	if (*this->_size != *other._size) return false;
 	for (UInt64 right = *this->_size - 1, left = 0; right >= left; left++, right--) {
 		if (this->_num[left] != other._num[left] || this->_num[right] != other._num[right]) return false;
@@ -344,7 +344,7 @@ bool Decimal::operator == (Decimal& other) {
 	return true;
 }
 
-inline const Int16 Decimal::CharToDigit(const char& ch) {
+inline const Int16 Decimal::CharToDigit(const char& ch) noexcept {
 	switch (ch)
 	{
 	case '0': return 0;
@@ -362,7 +362,7 @@ inline const Int16 Decimal::CharToDigit(const char& ch) {
 	}
 }
 
-inline const char Decimal::DigitToChar(const UInt16& digit) {
+inline const char Decimal::DigitToChar(const UInt16& digit) noexcept {
 	switch (digit) {
 	case 0: return '0';
 	case 1: return '1';
@@ -379,7 +379,7 @@ inline const char Decimal::DigitToChar(const UInt16& digit) {
 	}
 }
 
-inline const Int64 Decimal::find(const char& ch) {
+inline const Int64 Decimal::find(const char& ch) noexcept {
 	for (UInt64 left = 0, right = *this->_size - 1; right >= left; left++, right--) {
 		if (this->_num[right] == ch) return right;
 		else if (this->_num[left] == ch) return left;
@@ -387,9 +387,9 @@ inline const Int64 Decimal::find(const char& ch) {
 	return -1;
 }
 
-inline static Decimal Decimal::abs(Decimal& other) {
+Decimal Decimal::abs(Decimal & other) noexcept {
 	char* result = new char[*other._size - 1];
-	for (UInt64 i = 0; i < *other._size - 1; i++) result[i] = other._num[i];
+	for (UInt64 i = 0; i < *other._size - 1; i++) result[i] = other._num[i+1];
 	result[*other._size - 1] = '\0';
 	return Decimal(result);
 }

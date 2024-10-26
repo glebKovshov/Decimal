@@ -1,6 +1,7 @@
 #pragma once
 #include <iostream>
 #include <vector>
+#include <cmath>
 typedef unsigned long long UInt64;
 typedef long long Int64;
 typedef unsigned short UInt16;
@@ -12,10 +13,10 @@ private:
 	UInt64* _size = new UInt64(0);
 	UInt64* _prec = new UInt64(0);
 
-	inline const Int16 CharToDigit(const char& ch);
-	inline const char DigitToChar(const UInt16& digit);
-	inline const Int64 find(const char& ch);
-	friend std::ostream& operator << (std::ostream& ostream, const Decimal& num);
+	inline const Int16 CharToDigit(const char& ch) noexcept;
+	inline const char DigitToChar(const UInt16& digit) noexcept;
+	inline const Int64 find(const char& ch) noexcept;
+	friend std::ostream& operator << (std::ostream& ostream, const Decimal& num) noexcept;
 	
 public:
 	Decimal(const char* num);
@@ -23,13 +24,13 @@ public:
 	Decimal();
 	~Decimal();
 
-	Decimal operator + (Decimal& other);
-	Decimal operator - (Decimal& other);
-	const Decimal& operator = (const Decimal& num);
-	bool operator < (Decimal& other);
-	bool operator > (Decimal& other);
-	bool operator == (Decimal& other);
-	inline static Decimal abs(Decimal& other);
+	Decimal operator + (Decimal& other) noexcept;
+	Decimal operator - (Decimal& other) noexcept;
+	const Decimal& operator = (const Decimal& num) noexcept;
+	bool operator < (Decimal& other) noexcept;
+	bool operator > (Decimal& other) noexcept;
+	bool operator == (Decimal& other) noexcept;
+	static Decimal abs(Decimal& other) noexcept;
 };
 
 class InvalidValue : public std::exception {
