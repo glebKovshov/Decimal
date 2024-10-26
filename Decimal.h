@@ -24,10 +24,12 @@ public:
 	~Decimal();
 
 	Decimal operator + (Decimal& other);
+	Decimal operator - (Decimal& other);
 	const Decimal& operator = (const Decimal& num);
 	bool operator < (Decimal& other);
 	bool operator > (Decimal& other);
 	bool operator == (Decimal& other);
+	inline static Decimal abs(Decimal& other);
 };
 
 class InvalidValue : public std::exception {

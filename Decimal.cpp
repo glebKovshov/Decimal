@@ -7,8 +7,8 @@ Decimal::Decimal(const char* num) {
 		_num[0] = '\0';
 		return;
 	}
-
-	if (Decimal::CharToDigit(num[0]) == -1 && num[0] != '-') throw InvalidValue();
+	if (num[0] == '-') (*_size)++;
+	else if (Decimal::CharToDigit(num[0]) == -1) throw InvalidValue();
 
 	UInt16 dotcount = 0;
 
@@ -20,14 +20,14 @@ Decimal::Decimal(const char* num) {
 		else if (Decimal::CharToDigit(num[*_size]) == -1) throw InvalidValue();
 		(*_size)++;
 	}
-	
-	if (num[*_size-1] == '0' && dotcount == 1) {
+
+	if (num[*_size - 1] == '0' && dotcount == 1) {
 		for (UInt64 i = *_size - 1; num[i] != '.'; i--) {
 			if (num[i] == '0') (*_size)--;
 			else break;
 		}
 	}
-	if (num[*_size-1] == '.') (*_size)--;
+	if (num[*_size - 1] == '.') (*_size)--;
 	_num = new char[*_size + 1];
 	_num[*_size] = '\0';
 
@@ -52,7 +52,7 @@ Decimal::~Decimal() {
 }
 
 std::ostream& operator << (std::ostream& ostream, const Decimal& num) {
-	int *i = new int(0);
+	int* i = new int(0);
 	for (; *i < *num._size; (*i)++) ostream << num._num[*i];
 	delete i;
 	return ostream;
@@ -74,7 +74,7 @@ const Decimal& Decimal::operator=(const Decimal& other) {
 }
 
 Decimal Decimal::operator+(Decimal& other) {
-	
+
 	std::vector<char> fracpart;
 	std::vector<char> intpart;
 	UInt16 carryover = 0;
@@ -132,14 +132,14 @@ Decimal Decimal::operator+(Decimal& other) {
 		end2 = *other._size - 1;
 	}
 
-	while (start1 > end1  && start1 > 0 && start2 > end2 && start2 > 0) {
+	while (start1 > end1 && start1 > 0 && start2 > end2 && start2 > 0) {
 		result = CharToDigit(this->_num[start1]) + CharToDigit(other._num[start2]) + carryover;
 		carryover = result / 10;
 		fracpart.push_back(DigitToChar(result % 10));
 		start1--;
 		start2--;
 	}
-	
+
 	if (start1 > 0) end1--;  //Pass dot char
 	if (start2 > 0) end2--;
 
@@ -158,7 +158,7 @@ Decimal Decimal::operator+(Decimal& other) {
 		carryover = result / 10;
 		intpart.push_back(DigitToChar(result % 10));
 	}
-	
+
 	char* num = new char[intpart.size() + fracpart.size() + 2]; // '.' and \0
 
 	for (i = intpart.size() - 1; i > -1; i--, index++) num[index] = intpart[i];
@@ -172,6 +172,11 @@ Decimal Decimal::operator+(Decimal& other) {
 	return Decimal(num);
 }
 
+Decimal Decimal::operator - (Decimal& other) {
+	if (other._num[0] == '-' && this->_num[0] != '-') return this->Decimal::operator+(other); // second negative then do adding
+
+}
+
 bool Decimal::operator < (Decimal& other) {
 
 	if (this->_num[0] == '-' && other._num[0] != '-') return true;			// first - negative, second - non negative
@@ -181,17 +186,18 @@ bool Decimal::operator < (Decimal& other) {
 		UInt64 fraclen2 = 0;
 		Int64 dotpos1 = this->find('.');
 		Int64 dotpos2 = other.find('.');
-		UInt64 start1 = 0;
-		UInt64 start2 = 0;
-		Int64 end1 = 0;
-		Int64 end2 = 0;
+
 		if (dotpos1 != -1) fraclen1 = *this->_size - dotpos1 - 1; //Checking float numbers for fraction part length
 		if (dotpos2 != -1) fraclen2 = *other._size - dotpos2 - 1;
-		
+
 		if (*this->_size - fraclen1 > *other._size - fraclen2) return false;	// first number integer part bigger
 		else if (*this->_size - fraclen1 < *other._size - fraclen2) return true;// second number integer part bigger
 		else {																	// equals
-			
+			UInt64 start1 = 0;
+			UInt64 start2 = 0;
+			Int64 end1 = 0;
+			Int64 end2 = 0;
+
 			if (fraclen1 > fraclen2) {
 				start1 = *this->_size - (fraclen1 - fraclen2) - 1;
 				end1 = dotpos1;
@@ -246,9 +252,10 @@ bool Decimal::operator < (Decimal& other) {
 
 			return result;
 		}
+	}
+	else {			//both negative
 
 	}
-	return true;
 }
 
 bool Decimal::operator > (Decimal& other) {
@@ -329,9 +336,9 @@ bool Decimal::operator > (Decimal& other) {
 	return true;
 }
 
-bool Decimal::operator == (Decimal& other){
+bool Decimal::operator == (Decimal& other) {
 	if (*this->_size != *other._size) return false;
-	for (UInt64 right = *this->_size - 1, left = 0; right >= left; left++, right--){
+	for (UInt64 right = *this->_size - 1, left = 0; right >= left; left++, right--) {
 		if (this->_num[left] != other._num[left] || this->_num[right] != other._num[right]) return false;
 	}
 	return true;
@@ -356,7 +363,7 @@ inline const Int16 Decimal::CharToDigit(const char& ch) {
 }
 
 inline const char Decimal::DigitToChar(const UInt16& digit) {
-	switch (digit){
+	switch (digit) {
 	case 0: return '0';
 	case 1: return '1';
 	case 2: return '2';
@@ -373,8 +380,16 @@ inline const char Decimal::DigitToChar(const UInt16& digit) {
 }
 
 inline const Int64 Decimal::find(const char& ch) {
-	for (UInt64 i = 0; i < *_size; i++) {
-		if (_num[i] == ch) return i;
+	for (UInt64 left = 0, right = *this->_size - 1; right >= left; left++, right--) {
+		if (this->_num[right] == ch) return right;
+		else if (this->_num[left] == ch) return left;
 	}
 	return -1;
+}
+
+inline static Decimal Decimal::abs(Decimal& other) {
+	char* result = new char[*other._size - 1];
+	for (UInt64 i = 0; i < *other._size - 1; i++) result[i] = other._num[i];
+	result[*other._size - 1] = '\0';
+	return Decimal(result);
 }
