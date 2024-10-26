@@ -27,6 +27,7 @@ public:
 	const Decimal& operator = (const Decimal& num);
 	bool operator < (Decimal& other);
 	bool operator > (Decimal& other);
+	bool operator == (Decimal& other);
 };
 
 class InvalidValue : public std::exception {

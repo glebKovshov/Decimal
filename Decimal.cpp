@@ -20,13 +20,14 @@ Decimal::Decimal(const char* num) {
 		else if (Decimal::CharToDigit(num[*_size]) == -1) throw InvalidValue();
 		(*_size)++;
 	}
-	if (num[*_size-1] == '.') (*_size)--;
-	else if (num[*_size-1] == '0' && dotcount == 1) {
+	
+	if (num[*_size-1] == '0' && dotcount == 1) {
 		for (UInt64 i = *_size - 1; num[i] != '.'; i--) {
 			if (num[i] == '0') (*_size)--;
 			else break;
 		}
 	}
+	if (num[*_size-1] == '.') (*_size)--;
 	_num = new char[*_size + 1];
 	_num[*_size] = '\0';
 
@@ -324,6 +325,14 @@ bool Decimal::operator > (Decimal& other) {
 
 			return result;
 		}
+	}
+	return true;
+}
+
+bool Decimal::operator == (Decimal& other){
+	if (*this->_size != *other._size) return false;
+	for (UInt64 right = *this->_size - 1, left = 0; right >= left; left++, right--){
+		if (this->_num[left] != other._num[left] || this->_num[right] != other._num[right]) return false;
 	}
 	return true;
 }
