@@ -35,9 +35,9 @@ Decimal::Decimal(const char* num) {
 }
 
 Decimal::Decimal(const Decimal& other) {
-	*this->_size = *other._size;
+	this->_size = new UInt64(*other._size);
 	this->_num = new char[*this->_size];
-	this->_num = other._num;
+	for (UInt64 i = 0; i < *this->_size; i++) this->_num[i] = other._num[i];
 }
 
 Decimal::Decimal() {
@@ -52,24 +52,19 @@ Decimal::~Decimal() {
 }
 
 std::ostream& operator << (std::ostream& ostream, const Decimal& num) noexcept {
-	int* i = new int(0);
-	for (; *i < *num._size; (*i)++) ostream << num._num[*i];
-	delete i;
+	for (UInt64 i = 0; i < *num._size; i++) ostream << num._num[i];
 	return ostream;
 }
 
 const Decimal& Decimal::operator=(const Decimal& other) noexcept {
-	if (this->_num != nullptr) {
+	if (this != nullptr) {
 		delete[] this->_num, this->_size;
 	}
 
-	*this->_size = *other._size;
+	this->_size = new UInt64(*other._size);
 	this->_num = new char[*this->_size];
-
-	int* i = new int(0);
-	for (; *i < *this->_size; (*i)++) this->_num[*i] = other._num[*i];
-
-	delete i;
+	
+	for (UInt64 i = 0; i < *this->_size; i++) this->_num[i] = other._num[i];
 	return *this;
 }
 
@@ -387,7 +382,8 @@ inline const Int64 Decimal::find(const char& ch) noexcept {
 	return -1;
 }
 
-Decimal Decimal::abs(Decimal & other) noexcept {
+Decimal Decimal::abs(Decimal& other) noexcept {
+	if (other._num[0] != '-') return Decimal(other);
 	char* result = new char[*other._size - 1];
 	for (UInt64 i = 0; i < *other._size - 1; i++) result[i] = other._num[i+1];
 	result[*other._size - 1] = '\0';
