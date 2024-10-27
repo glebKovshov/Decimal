@@ -68,6 +68,14 @@ const Decimal& Decimal::operator=(const Decimal& other) noexcept {
 	return *this;
 }
 
+Decimal Decimal::abs(Decimal& other) noexcept {
+	if (other._num[0] != '-') return Decimal(other);
+	char* result = new char[*other._size - 1];
+	for (UInt64 i = 0; i < *other._size - 1; i++) result[i] = other._num[i + 1];
+	result[*other._size - 1] = '\0';
+	return Decimal(result);
+}
+
 Decimal Decimal::operator+(Decimal& other) noexcept {
 
 	std::vector<char> fracpart;
@@ -84,7 +92,6 @@ Decimal Decimal::operator+(Decimal& other) noexcept {
 	Int64 dotpos1 = this->find('.');
 	Int64 dotpos2 = other.find('.');
 	Int64 i = 0;
-
 
 	if (dotpos1 != -1) fraclen1 = *this->_size - dotpos1 - 1; //Checking float numbers for fraction part length
 	if (dotpos2 != -1) fraclen2 = *other._size - dotpos2 - 1;
@@ -168,8 +175,7 @@ Decimal Decimal::operator+(Decimal& other) noexcept {
 }
 
 Decimal Decimal::operator - (Decimal& other) noexcept {
-	if (other._num[0] == '-' && this->_num[0] != '-') return this->Decimal::operator+(other); // second negative then do adding
-	return *this;
+	if (other._num[0] == '-' && this->_num[0] != '-') return this->Decimal::operator+(other); // adding if both are negative
 }
 
 bool Decimal::operator < (Decimal& other) noexcept {
@@ -249,6 +255,16 @@ bool Decimal::operator < (Decimal& other) noexcept {
 		}
 	}
 	else {			//both negative
+		Decimal* absthis = new Decimal(Decimal::abs(*this));
+		Decimal* absother = new Decimal(Decimal::abs(other));
+
+		if (*absthis < *absother) {
+			delete absthis;
+			delete absother;
+			return false;
+		}
+		delete absthis;
+		delete absother;
 		return true;
 	}
 }
@@ -328,7 +344,19 @@ bool Decimal::operator > (Decimal& other) noexcept {
 			return result;
 		}
 	}
-	return true;
+	else {			//both negative
+		Decimal* absthis = new Decimal(Decimal::abs(*this));
+		Decimal* absother = new Decimal(Decimal::abs(other));
+
+		if (*absthis > *absother) {
+			delete absthis;
+			delete absother;
+			return false;
+		}
+		delete absthis;
+		delete absother;
+		return true;
+	}
 }
 
 bool Decimal::operator == (Decimal& other) noexcept {
@@ -380,12 +408,4 @@ inline const Int64 Decimal::find(const char& ch) noexcept {
 		else if (this->_num[left] == ch) return left;
 	}
 	return -1;
-}
-
-Decimal Decimal::abs(Decimal& other) noexcept {
-	if (other._num[0] != '-') return Decimal(other);
-	char* result = new char[*other._size - 1];
-	for (UInt64 i = 0; i < *other._size - 1; i++) result[i] = other._num[i+1];
-	result[*other._size - 1] = '\0';
-	return Decimal(result);
 }
