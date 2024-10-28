@@ -161,21 +161,92 @@ Decimal Decimal::operator+(Decimal& other) noexcept {
 		intpart.push_back(DigitToChar(result % 10));
 	}
 
-	char* num = new char[intpart.size() + fracpart.size() + 2]; // '.' and \0
+	UInt64 size = intpart.size() + fracpart.size() + 1; // 1 for '\0'
+
+	if (fracpart.size() > 0) size++; // for '.'
+	char* num = new char[size];
 
 	for (i = intpart.size() - 1; i > -1; i--, index++) num[index] = intpart[i];
+
 	if (fracpart.size() > 0) {
 		num[index] = '.';
 		index++;
 		for (i = fracpart.size() - 1; i > -1; i--, index++) num[index] = (fracpart)[i];
 	}
+
 	num[index] = '\0';
 
 	return Decimal(num);
 }
 
 Decimal Decimal::operator - (Decimal& other) noexcept {
-	if (other._num[0] == '-' && this->_num[0] != '-') return this->Decimal::operator+(other); // adding if both are negative
+	Decimal absthis = Decimal::abs(*this);
+	Decimal absother = Decimal::abs(other);
+
+	if (other._num[0] == '-' && this->_num[0] != '-') { // a - (-b) = a + b
+		return this->Decimal::operator+(absother);
+	}
+
+	else if (this->_num[0] == '-' && other._num[0] != '-') { // -a - b = -(a+b)
+		Decimal add_res = absthis + absother;
+		
+		char* num = new char[*add_res._size + 1];
+		num[0] = '-';
+
+		for (UInt64 i = 0; i < *add_res._size; i++) num[i + 1] = add_res._num[i];
+
+		num[*add_res._size + 1] = '\0';
+
+		return Decimal(num);
+	}
+	
+	else if (this->_num[0] == '-' && other._num[0] == '-') // -a - (-b) = b - a
+		return absother - absthis;
+
+	else if (absother > absthis) { // a - b = -(b-a) : b > a
+		Decimal sub_res = absother - absthis;
+		char* num = new char[*sub_res._size + 1];
+		num[0] = '-';
+
+		for (UInt64 i = 0; i <= *sub_res._size; i++) num[i + 1] = sub_res._num[i];
+
+		return Decimal(num);
+	}
+
+	else {											  // a - b: a > b
+		std::vector<char> fracpart;
+		std::vector<char> intpart;
+		UInt16 borrow = 0;
+		UInt64 fraclen1 = 0;
+		UInt64 fraclen2 = 0;
+		UInt64 start1 = 0;
+		UInt64 start2 = 0;
+		Int64 end1 = 0;
+		Int64 end2 = 0;
+		UInt16 result = 0;
+		UInt64 index = 0;
+		Int64 dotpos1 = this->find('.');
+		Int64 dotpos2 = other.find('.');
+		Int64 i = 0;
+
+		if (dotpos1 != -1) fraclen1 = *this->_size - dotpos1 - 1; // Checking float numbers for fraction part length
+		if (dotpos2 != -1) fraclen2 = *other._size - dotpos2 - 1;
+
+		if (fraclen1 > fraclen2) {								  // pushing firts num extra digits and define start and end position for each nums
+			for (UInt64 i = *this->_size - 1; i > dotpos1 + fraclen2; i--) fracpart.push_back(this->_num[i]);
+			start1 = *this->_size - (fraclen1 - fraclen2) - 1;
+			end1 = dotpos1;
+			if (dotpos2 == -1) {
+				end2 = *other._size - 1;
+			}
+			else {
+				start2 = *other._size - 1;
+				end2 = dotpos2;
+			}
+		}
+
+		
+	}
 }
 
 bool Decimal::operator < (Decimal& other) noexcept {
@@ -188,7 +259,7 @@ bool Decimal::operator < (Decimal& other) noexcept {
 		Int64 dotpos1 = this->find('.');
 		Int64 dotpos2 = other.find('.');
 
-		if (dotpos1 != -1) fraclen1 = *this->_size - dotpos1 - 1; //Checking float numbers for fraction part length
+		if (dotpos1 != -1) fraclen1 = *this->_size - dotpos1 - 1;           //Checking float numbers for fraction part length
 		if (dotpos2 != -1) fraclen2 = *other._size - dotpos2 - 1;
 
 		if (*this->_size - fraclen1 > *other._size - fraclen2) return false;	// first number integer part bigger
