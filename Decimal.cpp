@@ -11,27 +11,33 @@ Decimal::Decimal(const char* num) {
 	else if (Decimal::CharToDigit(num[0]) == -1) throw InvalidValue();
 
 	UInt16 dotcount = 0;
+	UInt64 start_insertion = 0;
 
-	while (num[*_size] != '\0') {
-		if (num[*_size] == '.') {
+	while (num[start_insertion] == '0') start_insertion++;
+
+	while (num[*_size + start_insertion] != '\0') {
+		if (num[*_size + start_insertion] == '.') {
 			dotcount++;
 			if (dotcount > 1) throw InvalidValue();
 		}
-		else if (Decimal::CharToDigit(num[*_size]) == -1) throw InvalidValue();
+		else if (Decimal::CharToDigit(num[*_size + start_insertion]) == -1) throw InvalidValue();
 		(*_size)++;
 	}
 
-	if (num[*_size - 1] == '0' && dotcount == 1) {
-		for (UInt64 i = *_size - 1; num[i] != '.'; i--) {
-			if (num[i] == '0') (*_size)--;
-			else break;
+	if (num[*_size + start_insertion - 1] == '0' && dotcount == 1) {
+		for (UInt64 i = *_size + start_insertion - 1; num[i] == '0'; i--) {
+			(*_size)--;
 		}
 	}
+
 	if (num[*_size - 1] == '.') (*_size)--;
+	
 	_num = new char[*_size + 1];
 	_num[*_size] = '\0';
 
-	for (UInt64 i = 0; i < *_size; i++) _num[i] = num[i];
+	for (UInt64 i = 0; i < *_size; i++) {
+		_num[i] = num[i+start_insertion];
+	}
 }
 
 Decimal::Decimal(const Decimal& other) {
@@ -171,7 +177,7 @@ Decimal Decimal::operator+(Decimal& other) noexcept {
 	if (fracpart.size() > 0) {
 		num[index] = '.';
 		index++;
-		for (i = fracpart.size() - 1; i > -1; i--, index++) num[index] = (fracpart)[i];
+		for (i = fracpart.size() - 1; i > -1; i--, index++) num[index] = fracpart[i];
 	}
 
 	num[index] = '\0';
@@ -233,7 +239,7 @@ Decimal Decimal::operator - (Decimal& other) noexcept {
 		if (dotpos2 != -1) fraclen2 = *other._size - dotpos2 - 1;
 
 		if (fraclen1 > fraclen2) {								  // pushing firts num extra digits and define start and end position for each nums
-			for (UInt64 i = *this->_size - 1; i > dotpos1 + fraclen2; i--) fracpart.push_back(this->_num[i]);
+			for (i = *this->_size - 1; i > dotpos1 + fraclen2; i--) fracpart.push_back(this->_num[i]);
 			start1 = *this->_size - (fraclen1 - fraclen2) - 1;
 			end1 = dotpos1;
 			if (dotpos2 == -1) {
@@ -245,7 +251,83 @@ Decimal Decimal::operator - (Decimal& other) noexcept {
 			}
 		}
 
-		
+		else if (fraclen1 < fraclen2) {
+			fracpart.push_back(10 - other._num[(*other._size - 1)]); // first time always will be (10 - second num last digit. Then always will be (9 - second num digit) while fraclen1 < fraclen2
+			borrow = 1;
+			for (i = *other._size - 2; i > dotpos2 + fraclen1; i--) fracpart.push_back(10 - borrow - other._num[i]);
+			start2 = *other._size - (fraclen2 - fraclen1) - 1;
+			end2 = dotpos2;
+			if (dotpos1 == -1) {
+				end1 = *this->_size - 1;
+			}
+			else {
+				start1 = *this->_size - 1;
+				end1 = dotpos1;
+			}
+		}
+
+		else if (fraclen1 == fraclen2 && fraclen1 != 0) {
+			start1 = *this->_size - 1;
+			end1 = dotpos1;
+			start2 = *other._size - 1;
+			end2 = dotpos2;
+		}
+
+		else {
+			end1 = *this->_size - 1;
+			end2 = *other._size - 1;
+		}
+
+		while (start1 > 0 && start2 > 0 && start1 > end1 && start2 > end2) {
+			result = Decimal::CharToDigit(this->_num[start1]) - Decimal::CharToDigit(other._num[start2]) - borrow;
+			if (result < 0) {
+				result += 10;
+				borrow = 1;
+			}
+			else borrow = 0;
+			fracpart.push_back(Decimal::DigitToChar(result));
+			start1--;
+			start2--;
+		}
+
+		if (start1 > 0) end1--;
+		if (start2 > 0) end2--;
+
+		while (end1 > -1 || end2 > -1 || borrow > 1) {
+			result = -borrow;
+			if (end1 > -1) {
+				result += Decimal::CharToDigit(this->_num[end1]); // diminutive
+				end1--;
+			}
+			if (end2 > -1) {
+				result -= Decimal::CharToDigit(other._num[end2]); // deductible
+				end2--;
+			}
+			if (result < 0) {
+				result += 10;
+				borrow = 1;
+			}
+			else borrow = 0;
+			intpart.push_back(Decimal::DigitToChar(result));
+			
+		}
+
+		UInt64 size = intpart.size() + fracpart.size() + 1; // 1 for '\0'
+
+		if (fracpart.size() > 0) size++; // for '.'
+		char* num = new char[size];
+
+		for (i = intpart.size() - 1; i > -1; i--, index++) num[index] = intpart[i];
+
+		if (fracpart.size() > 0) {
+			num[index] = '.';
+			index++;
+			for (i = fracpart.size() - 1; i > -1; i--, index++) num[index] = fracpart[i];
+		}
+
+		num[index] = '\0';
+
+		return Decimal(num);
 	}
 }
 
