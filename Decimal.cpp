@@ -55,9 +55,27 @@ std::ostream& operator << (std::ostream& ostream, const Decimal& num) noexcept {
 	return ostream;
 }
 
+std::istream& operator >> (std::istream& istream, Decimal& num) noexcept {
+	std::vector<char> chars;
+	for (char ch; istream.get(ch) && ch != '\n'; chars.push_back(ch));
+	
+	char* tempnum = new char[chars.size() + 1];
+
+	for (UInt64 i = 0; i < chars.size(); i++) tempnum[i] = chars[i];
+	tempnum[chars.size()] = '\0';
+
+	Decimal result = Decimal(tempnum);
+	delete[] num._num;
+	num._num = new char[result._size + 1];
+	num._size = result._size;
+	for (UInt64 i = 0; i <= num._size; i++) num._num[i] = result._num[i];
+
+	return istream;
+}
+
 const Decimal& Decimal::operator=(const Decimal& other) noexcept {
 	if (this != nullptr) {
-		delete[] this->_num, this->_size;
+		delete[] this->_num;
 	}
 
 	this->_size = other._size;
@@ -69,9 +87,9 @@ const Decimal& Decimal::operator=(const Decimal& other) noexcept {
 
 Decimal Decimal::abs(Decimal& other) noexcept {
 	if (other._num[0] != '-') return Decimal(other);
-	char* result = new char[other._size - 1];
-	for (UInt64 i = 0; i <= other._size - 1; i++) result[i] = other._num[i + 1];
-	return Decimal(result);
+	char* num = new char[other._size - 1];
+	for (UInt64 i = 0; i <= other._size - 1; i++) num[i] = other._num[i + 1];
+	return Decimal(num);
 }
 
 Decimal Decimal::operator +(Decimal& other) noexcept {
