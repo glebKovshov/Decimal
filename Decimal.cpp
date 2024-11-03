@@ -2,13 +2,13 @@
 
 Decimal::Decimal(const char* num) {
 	
-	if (num[0] == '-') (_size)++;
+	if (num[0] == '-' && num[1] != '\0') (_size)++;
 	else if (Decimal::CharToDigit(num[0]) == -1) throw InvalidValue();
 
 	UInt16 dotcount = 0;
 	UInt64 start_insertion = 0;
 
-	while (num[start_insertion] == '0') start_insertion++;
+	while (num[start_insertion] == '0' && num[start_insertion+1] != '\0') start_insertion++;
 
 	while (num[_size + start_insertion] != '\0') {
 		if (num[_size + start_insertion] == '.') {
@@ -284,9 +284,9 @@ Decimal Decimal::operator - (Decimal& other) noexcept {
 		}
 
 		else if (fraclen1 < fraclen2) {
-			fracpart.push_back(10 - CharToDigit(other._num[(other._size - 1)])); // first time always will be (10 - second num last digit. Then always will be (9 - second num digit) while fraclen1 < fraclen2
+			fracpart.push_back(DigitToChar(10 - CharToDigit(other._num[(other._size - 1)]))); // first time always will be (10 - second num last digit. Then always will be (9 - second num digit) while fraclen1 < fraclen2
 			borrow = 1;
-			for (i = other._size - 2; i > dotpos2 + fraclen1; i--) fracpart.push_back(10 - borrow - other._num[i]);
+			for (i = other._size - 2; i > dotpos2 + fraclen1; i--) fracpart.push_back(DigitToChar(10 - borrow - CharToDigit(other._num[i])));
 			start2 = other._size - (fraclen2 - fraclen1) - 1;
 			end2 = dotpos2;
 			if (dotpos1 == -1) {
@@ -367,92 +367,14 @@ bool Decimal::operator < (Decimal& other) noexcept {
 
 	if (this->_num[0] == '-' && other._num[0] != '-') return true;			// first - negative, second - non negative
 	else if (this->_num[0] != '-' && other._num[0] == '-') return false;	// first - non negative, second - negative
-	else if (this->_num[0] != '-' && other._num[0] != '-') {				// both non negative
-		UInt64 fraclen1 = 0;
-		UInt64 fraclen2 = 0;
-		Int64 dotpos1 = this->find('.');
-		Int64 dotpos2 = other.find('.');
-
-		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1 - 1;           //Checking float numbers for fraction part length
-		if (dotpos2 != -1) fraclen2 = other._size - dotpos2 - 1;
-
-		if (this->_size - fraclen1 > other._size - fraclen2) return false;	// first number integer part bigger
-		else if (this->_size - fraclen1 < other._size - fraclen2) return true;// second number integer part bigger
-		else {																	// equals
-			UInt64 start1 = 0;
-			UInt64 start2 = 0;
-			Int64 end1 = 0;
-			Int64 end2 = 0;
-
-			if (fraclen1 > fraclen2) {
-				start1 = this->_size - (fraclen1 - fraclen2) - 1;
-				end1 = dotpos1;
-				if (dotpos2 == -1) {
-					end2 = other._size - 1;
-				}
-				else {
-					start2 = other._size - 1;
-					end2 = dotpos2;
-				}
-			}
-			else if (fraclen1 < fraclen2) {
-				start2 = other._size - (fraclen2 - fraclen1) - 1;
-				end2 = dotpos2;
-				if (dotpos1 == -1) {
-					end1 = this->_size - 1;
-				}
-				else {
-					start1 = this->_size - 1;
-					end1 = dotpos1;
-				}
-			}
-			else if (fraclen1 == fraclen2 && fraclen1 != 0) {
-				start1 = this->_size - 1;
-				end1 = dotpos1;
-				start2 = other._size - 1;
-				end2 = dotpos2;
-			}
-			else {
-				end1 = this->_size - 1;
-				end2 = other._size - 1;
-			}
-
-			bool result = false;
-
-			while (start1 > end1 && start1 > 0 && start2 > end2 && start2 > 0) {
-				if (Decimal::CharToDigit(this->_num[start1]) < Decimal::CharToDigit(other._num[start2])) result = true;
-				else if (Decimal::CharToDigit(this->_num[start1]) > Decimal::CharToDigit(other._num[start2])) result = false;
-				start1--;
-				start2--;
-			}
-
-			if (start1 > 0) end1--;
-			if (start2 > 0) end2--;
-
-			while (end1 > -1) {
-				if (Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2])) result = true;
-				else if (Decimal::CharToDigit(this->_num[end1]) > Decimal::CharToDigit(other._num[end2])) result = false;
-				end1--;
-				end2--;
-			}
-
-			return result;
-		}
-	}
-	else {			//both negative
+	else if (this->_num[0] != '-' && other._num[0] == '-') {			    //both negative
 		Decimal absthis = Decimal::abs(*this);
 		Decimal absother = Decimal::abs(other);
 
 		if (absthis < absother) return false;
 		return true;
 	}
-}
-
-bool Decimal::operator > (Decimal& other) noexcept {
-
-	if (this->_num[0] == '-' && other._num[0] != '-') return false;			// first - negative, second - non negative
-	else if (this->_num[0] != '-' && other._num[0] == '-') return true;		// first - non negative, second - negative
-	else if (this->_num[0] != '-' && other._num[0] != '-') {				// both non negative
+	else {				                                                    // both non negative
 		UInt64 fraclen1 = 0;
 		UInt64 fraclen2 = 0;
 		Int64 dotpos1 = this->find('.');
@@ -461,75 +383,143 @@ bool Decimal::operator > (Decimal& other) noexcept {
 		UInt64 start2 = 0;
 		Int64 end1 = 0;
 		Int64 end2 = 0;
-		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1 - 1; //Checking float numbers for fraction part length
+		bool result = false;
+		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1 - 1; 
 		if (dotpos2 != -1) fraclen2 = other._size - dotpos2 - 1;
 
-		if (this->_size - fraclen1 > other._size - fraclen2) return true;	      // first number integer part bigger
-		else if (this->_size - fraclen1 < other._size - fraclen2) return false; // second number integer part bigger
-		else {																	  // equals
-
-			if (fraclen1 > fraclen2) {
-				start1 = this->_size - (fraclen1 - fraclen2) - 1;
-				end1 = dotpos1;
-				if (dotpos2 == -1) {
-					end2 = other._size - 1;
-				}
-				else {
-					start2 = other._size - 1;
-					end2 = dotpos2;
-				}
+		if (fraclen1 > fraclen2) {
+			start1 = this->_size - (fraclen1 - fraclen2) - 1;
+			end1 = dotpos1;
+			if (dotpos2 == -1) {
+				end2 = other._size - 1;
 			}
-			else if (fraclen1 < fraclen2) {
-				start2 = other._size - (fraclen2 - fraclen1) - 1;
-				end2 = dotpos2;
-				if (dotpos1 == -1) {
-					end1 = this->_size - 1;
-				}
-				else {
-					start1 = this->_size - 1;
-					end1 = dotpos1;
-				}
-			}
-			else if (fraclen1 == fraclen2 && fraclen1 != 0) {
-				start1 = this->_size - 1;
-				end1 = dotpos1;
+			else {
 				start2 = other._size - 1;
 				end2 = dotpos2;
 			}
-			else {
-				end1 = this->_size - 1;
-				end2 = other._size - 1;
-			}
-
-			bool result = false;
-
-			while (start1 > end1 && start1 > 0 && start2 > end2 && start2 > 0) {
-				if (Decimal::CharToDigit(this->_num[start1]) < Decimal::CharToDigit(other._num[start2])) result = false;
-				else if (Decimal::CharToDigit(this->_num[start1]) > Decimal::CharToDigit(other._num[start2])) result = true;
-				start1--;
-				start2--;
-			}
-
-			if (start1 > 0) end1--;
-			if (start2 > 0) end2--;
-
-			while (end1 > -1) {
-				if (Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2])) result = false;
-				else if (Decimal::CharToDigit(this->_num[end1]) > Decimal::CharToDigit(other._num[end2])) result = true;
-				end1--;
-				end2--;
-			}
-
-			return result;
 		}
+		else if (fraclen1 < fraclen2) {
+			result = true;
+			start2 = other._size - (fraclen2 - fraclen1) - 1;
+			end2 = dotpos2;
+			if (dotpos1 == -1) {
+				end1 = this->_size - 1;
+			}
+			else {
+				start1 = this->_size - 1;
+				end1 = dotpos1;
+			}
+		}
+		else if (fraclen1 == fraclen2 && fraclen1 != 0) {
+			start1 = this->_size - 1;
+			end1 = dotpos1;
+			start2 = other._size - 1;
+			end2 = dotpos2;
+		}
+		else {
+			end1 = this->_size - 1;
+			end2 = other._size - 1;
+		}
+
+		while (start1 > end1 && start1 > 0 && start2 > end2 && start2 > 0) {
+			if (Decimal::CharToDigit(this->_num[start1]) < Decimal::CharToDigit(other._num[start2])) result = true;
+			else result = false;
+			start1--;
+			start2--;
+		}
+
+		if (start1 > 0) end1--;
+		if (start2 > 0) end2--;
+
+		while (end1 > -1) {
+			if (Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2])) result = true;
+			else result = false;
+			end1--;
+			end2--;
+		}
+
+		return result;
 	}
-	else {			//both negative
+}
+
+bool Decimal::operator > (Decimal& other) noexcept {
+
+	if (this->_num[0] == '-' && other._num[0] != '-') return false;			// first - negative, second - non negative
+	else if (this->_num[0] != '-' && other._num[0] == '-') return true;		// first - non negative, second - negative
+	else if (this->_num[0] != '-' && other._num[0] == '-') {			    //both negative
 		Decimal absthis = Decimal::abs(*this);
 		Decimal absother = Decimal::abs(other);
 
 		if (absthis > absother) return false;
 		return true;
 	}
+	else {				                                                    // both non negative
+		UInt64 fraclen1 = 0;
+		UInt64 fraclen2 = 0;
+		Int64 dotpos1 = this->find('.');
+		Int64 dotpos2 = other.find('.');
+		UInt64 start1 = 0;
+		UInt64 start2 = 0;
+		Int64 end1 = 0;
+		Int64 end2 = 0;
+		bool result = false;
+		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1 - 1; 
+		if (dotpos2 != -1) fraclen2 = other._size - dotpos2 - 1;
+
+		if (fraclen1 > fraclen2) {
+			result = true;
+			start1 = this->_size - (fraclen1 - fraclen2) - 1;
+			end1 = dotpos1;
+			if (dotpos2 == -1) {
+				end2 = other._size - 1;
+			}
+			else {
+				start2 = other._size - 1;
+				end2 = dotpos2;
+			}
+		}
+		else if (fraclen1 < fraclen2) {
+			start2 = other._size - (fraclen2 - fraclen1) - 1;
+			end2 = dotpos2;
+			if (dotpos1 == -1) {
+				end1 = this->_size - 1;
+			}
+			else {
+				start1 = this->_size - 1;
+				end1 = dotpos1;
+			}
+		}
+		else if (fraclen1 == fraclen2 && fraclen1 != 0) {
+			start1 = this->_size - 1;
+			end1 = dotpos1;
+			start2 = other._size - 1;
+			end2 = dotpos2;
+		}
+		else {
+			end1 = this->_size - 1;
+			end2 = other._size - 1;
+		}
+
+		while (start1 > end1 && start1 > 0 && start2 > end2 && start2 > 0) {
+			if (Decimal::CharToDigit(this->_num[start1]) < Decimal::CharToDigit(other._num[start2])) result = false;
+			else if (Decimal::CharToDigit(this->_num[start1]) > Decimal::CharToDigit(other._num[start2])) result = true;
+			start1--;
+			start2--;
+		}
+
+		if (start1 > 0) end1--;
+		if (start2 > 0) end2--;
+
+		while (end1 > -1) {
+			if (Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2])) result = false;
+			else if (Decimal::CharToDigit(this->_num[end1]) > Decimal::CharToDigit(other._num[end2])) result = true;
+			end1--;
+			end2--;
+		}
+
+		return result;
+	}
+	
 }
 
 bool Decimal::operator == (Decimal& other) noexcept {
@@ -576,9 +566,13 @@ inline const char Decimal::DigitToChar(const UInt16& digit) noexcept {
 }
 
 inline const Int64 Decimal::find(const char& ch) noexcept {
-	for (UInt64 left = 0, right = this->_size - 1; right >= left; left++, right--) {
+	UInt64 left = 0, right = this->_size - 1;
+	while (right >= left ) {
 		if (this->_num[right] == ch) return right;
 		else if (this->_num[left] == ch) return left;
+		left++; 
+		if (right > 0) right--;
+		else break;
 	}
 	return -1;
 }
