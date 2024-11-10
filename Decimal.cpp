@@ -8,7 +8,7 @@ Decimal::Decimal(const char* num) {
 	UInt16 dotcount = 0;
 	UInt64 start_insertion = 0;
 
-	while (num[start_insertion] == '0' && num[start_insertion+1] != '\0') start_insertion++;
+	while (num[start_insertion] == '0' && num[start_insertion+1] != '\0' && num[start_insertion + 1] != '.') start_insertion++;
 
 	while (num[_size + start_insertion] != '\0') {
 		if (num[_size + start_insertion] == '.') {
@@ -44,6 +44,12 @@ Decimal::Decimal(const Decimal& other) {
 Decimal::Decimal() {
 	_num = new char[1];
 	_num[0] = '\0';
+}
+
+Decimal::Decimal(const char* num, UInt64 size) noexcept {
+	_size = size;
+	_num = new char[size + 1];
+	for (UInt64 i = 0; i <= size; i++) _num[i] = num[i];
 }
 
 Decimal::~Decimal() {
@@ -217,6 +223,15 @@ Decimal Decimal::operator +(Decimal& other) noexcept {
 	}
 }
 
+void Decimal::operator += (Decimal& other) noexcept
+{
+	Decimal sum = *this + other;
+	delete[] _num;
+	_num = new char[sum._size+1];
+	_size = sum._size;
+	for (int64_t i = 0; i <= _size; i++) _num[i] = sum._num[i];
+}
+
 Decimal Decimal::operator - (Decimal& other) noexcept {
 	Decimal absthis = Decimal::abs(*this);
 	Decimal absother = Decimal::abs(other);
@@ -363,6 +378,69 @@ Decimal Decimal::operator - (Decimal& other) noexcept {
 	}
 }
 
+Decimal Decimal::operator * (Decimal& other) noexcept
+{
+	Decimal sum("0", 1);
+	int64_t second_digit_capacity = other._size - 1;
+	uint8_t carryover = 0;
+	std::vector<char> line_result;
+	UInt16 result;
+	Decimal temp;
+	Int64 dotpos1 = this->find('.');
+	Int64 dotpos2 = other.find('.');
+	int64_t decimal_place = 0;
+
+	if (dotpos1 != -1) decimal_place += this->_size - dotpos1 - 1;
+	if (dotpos2 != -1) {
+		second_digit_capacity--;
+		decimal_place += other._size - dotpos2 - 1;
+	}
+
+	for (int64_t index_other = 0, other_size = other._size; index_other < other_size; index_other++, second_digit_capacity--) {
+		if (other._num[index_other] == '.') {
+			second_digit_capacity++;
+			continue;
+		}
+
+		for (int64_t i = 0; i < second_digit_capacity; i++) line_result.push_back('0');
+		
+		for (int64_t index_this = this->_size - 1; index_this > -1; index_this--){
+			if (this->_num[index_this] == '.') continue;
+
+			result = CharToDigit(this->_num[index_this]) * CharToDigit(other._num[index_other]) + carryover;
+			carryover = result / 10;
+			line_result.push_back(DigitToChar(result%10));
+
+		}
+		if (carryover > 0) {
+			line_result.push_back(DigitToChar(carryover));
+			carryover = 0;
+		}
+		temp._size = line_result.size();
+		temp._num = new char[temp._size + 1];
+
+		for (int64_t index_vec = line_result.size() - 1, index_ch = 0; index_vec > -1; index_vec--, index_ch++) temp._num[index_ch] = line_result[index_vec];
+		temp._num[temp._size] = '\0';
+
+		line_result = {};
+		sum += temp;
+	}
+	int64_t size = sum._size;
+	if (decimal_place > 0) size++;
+	char* num = new char[size + 1];
+
+	if (decimal_place > 0) {
+		for (uint64_t i = 0; i < size - decimal_place - 1; i++) num[i] = sum._num[i];
+		num[size - decimal_place - 1] = '.';
+		for (uint64_t i = size - decimal_place; i < size; i++) num[i] = sum._num[i - 1];
+	}
+
+	else for (uint64_t i = 0; i < size; i++) num[i] = sum._num[i];
+	num[size] = '\0';
+
+	return Decimal(num, size);
+}
+
 bool Decimal::operator < (Decimal& other) noexcept {
 
 	if (this->_num[0] == '-' && other._num[0] != '-') return true;			// first - negative, second - non negative
@@ -387,6 +465,9 @@ bool Decimal::operator < (Decimal& other) noexcept {
 		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1 - 1; 
 		if (dotpos2 != -1) fraclen2 = other._size - dotpos2 - 1;
 
+		if (this->_size - fraclen1 < other._size - fraclen2) return true;		// int part of second num bigger than second
+		else if (this->_size - fraclen1 > other._size - fraclen2) return false;	// int part of first num bigger than second
+																				// equals
 		if (fraclen1 > fraclen2) {
 			start1 = this->_size - (fraclen1 - fraclen2) - 1;
 			end1 = dotpos1;
@@ -423,7 +504,7 @@ bool Decimal::operator < (Decimal& other) noexcept {
 
 		while (start1 > end1 && start1 > 0 && start2 > end2 && start2 > 0) {
 			if (Decimal::CharToDigit(this->_num[start1]) < Decimal::CharToDigit(other._num[start2])) result = true;
-			else result = false;
+			else if (Decimal::CharToDigit(this->_num[start1]) > Decimal::CharToDigit(other._num[start2])) result = false;
 			start1--;
 			start2--;
 		}
@@ -433,7 +514,7 @@ bool Decimal::operator < (Decimal& other) noexcept {
 
 		while (end1 > -1) {
 			if (Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2])) result = true;
-			else result = false;
+			else if (Decimal::CharToDigit(this->_num[start1]) > Decimal::CharToDigit(other._num[start2])) result = false;
 			end1--;
 			end2--;
 		}
@@ -466,7 +547,10 @@ bool Decimal::operator > (Decimal& other) noexcept {
 		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1 - 1; 
 		if (dotpos2 != -1) fraclen2 = other._size - dotpos2 - 1;
 
-		if (fraclen1 > fraclen2) {
+		if (this->_size - fraclen1 > other._size - fraclen2) return true;		// int part of first num bigger than second
+		else if (this->_size - fraclen1 < other._size - fraclen2) return false; // int part of second num bigger than first
+																				// equals
+ 		if (fraclen1 > fraclen2) {
 			result = true;
 			start1 = this->_size - (fraclen1 - fraclen2) - 1;
 			end1 = dotpos1;
@@ -501,8 +585,8 @@ bool Decimal::operator > (Decimal& other) noexcept {
 		}
 
 		while (start1 > end1 && start1 > 0 && start2 > end2 && start2 > 0) {
-			if (Decimal::CharToDigit(this->_num[start1]) < Decimal::CharToDigit(other._num[start2])) result = false;
-			else if (Decimal::CharToDigit(this->_num[start1]) > Decimal::CharToDigit(other._num[start2])) result = true;
+			if (Decimal::CharToDigit(this->_num[start1]) > Decimal::CharToDigit(other._num[start2])) result = true;
+			else if ((Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2]))) result = false;
 			start1--;
 			start2--;
 		}
@@ -510,9 +594,9 @@ bool Decimal::operator > (Decimal& other) noexcept {
 		if (start1 > 0) end1--;
 		if (start2 > 0) end2--;
 
-		while (end1 > -1) {
-			if (Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2])) result = false;
-			else if (Decimal::CharToDigit(this->_num[end1]) > Decimal::CharToDigit(other._num[end2])) result = true;
+		while (end1 > -1 || end2 > -1) {
+			if (Decimal::CharToDigit(this->_num[end1]) > Decimal::CharToDigit(other._num[end2])) result = true;
+			else if ((Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2]))) result = false;
 			end1--;
 			end2--;
 		}
@@ -530,7 +614,7 @@ bool Decimal::operator == (Decimal& other) noexcept {
 	return true;
 }
 
-inline const Int16 Decimal::CharToDigit(const char& ch) noexcept {
+inline constexpr Int16 Decimal::CharToDigit(const char& ch) noexcept {
 	switch (ch)
 	{
 	case '0': return 0;
@@ -548,7 +632,7 @@ inline const Int16 Decimal::CharToDigit(const char& ch) noexcept {
 	}
 }
 
-inline const char Decimal::DigitToChar(const UInt16& digit) noexcept {
+inline constexpr char Decimal::DigitToChar(const UInt16& digit) noexcept {
 	switch (digit) {
 	case 0: return '0';
 	case 1: return '1';
@@ -565,7 +649,7 @@ inline const char Decimal::DigitToChar(const UInt16& digit) noexcept {
 	}
 }
 
-inline const Int64 Decimal::find(const char& ch) noexcept {
+inline constexpr Int64 Decimal::find(const char& ch) noexcept {
 	UInt64 left = 0, right = this->_size - 1;
 	while (right >= left ) {
 		if (this->_num[right] == ch) return right;
