@@ -34,6 +34,7 @@ public:
 	bool operator > (Decimal& other) noexcept;
 	bool operator == (Decimal& other) noexcept;
 	static Decimal abs(Decimal& other) noexcept;
+	Decimal pow(uint16_t n) noexcept;
 };
 
 class InvalidValue : public std::exception {

@@ -85,9 +85,9 @@ const Decimal& Decimal::operator=(const Decimal& other) noexcept {
 	}
 
 	this->_size = other._size;
-	this->_num = new char[this->_size];
+	this->_num = new char[this->_size+1];
 	
-	for (UInt64 i = 0; i < this->_size; i++) this->_num[i] = other._num[i];
+	for (UInt64 i = 0; i <= this->_size; i++) this->_num[i] = other._num[i];
 	return *this;
 }
 
@@ -96,6 +96,17 @@ Decimal Decimal::abs(Decimal& other) noexcept {
 	char* num = new char[other._size - 1];
 	for (UInt64 i = 0; i <= other._size - 1; i++) num[i] = other._num[i + 1];
 	return Decimal(num);
+}
+
+Decimal Decimal::pow(uint16_t n) noexcept
+{
+	if (n <= 0) return *this;
+	Decimal result = Decimal("1", 1);
+	for (uint16_t i = 0; i < n; i++) {
+		result = Decimal(result * *this);
+	}
+	return result;
+
 }
 
 Decimal Decimal::operator +(Decimal& other) noexcept {
@@ -225,11 +236,7 @@ Decimal Decimal::operator +(Decimal& other) noexcept {
 
 void Decimal::operator += (Decimal& other) noexcept
 {
-	Decimal sum = *this + other;
-	delete[] _num;
-	_num = new char[sum._size+1];
-	_size = sum._size;
-	for (int64_t i = 0; i <= _size; i++) _num[i] = sum._num[i];
+	*this = Decimal(*this + other);
 }
 
 Decimal Decimal::operator - (Decimal& other) noexcept {
@@ -660,3 +667,4 @@ inline constexpr Int64 Decimal::find(const char& ch) noexcept {
 	}
 	return -1;
 }
+
