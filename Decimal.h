@@ -2,22 +2,18 @@
 #include <iostream>
 #include <vector>
 #include <string>
-typedef unsigned long long UInt64;
-typedef long long Int64;
-typedef unsigned short UInt16;
-typedef short Int16;
 
 class Decimal {
 private:
 	char* _num;
-	UInt64 _size = 0;
+	int64_t _size = 0;
 
-	inline constexpr Int16 CharToDigit(const char& ch) noexcept;
-	inline constexpr char DigitToChar(const UInt16& digit) noexcept;
-	inline constexpr Int64 find(const char& ch) noexcept;
+	inline constexpr uint8_t CharToDigit(const char& ch) noexcept;
+	inline constexpr char DigitToChar(const uint8_t& digit) noexcept;
+	inline constexpr int64_t find(const char& ch) noexcept;
 	friend std::ostream& operator << (std::ostream& ostream, const Decimal& num) noexcept;
 	friend std::istream& operator >> (std::istream& istream, Decimal& num) noexcept;
-	Decimal(const char* num, UInt64 size) noexcept;
+	Decimal(const char* num, int64_t size) noexcept;
 	
 public:
 	Decimal(const char* num);
@@ -33,8 +29,8 @@ public:
 	bool operator < (Decimal& other) noexcept;
 	bool operator > (Decimal& other) noexcept;
 	bool operator == (Decimal& other) noexcept;
-	static Decimal abs(Decimal& other) noexcept;
-	Decimal pow(uint16_t n) noexcept;
+	static Decimal abs(const Decimal& other) noexcept;
+	Decimal pow(const uint16_t& n) noexcept;
 };
 
 class InvalidValue : public std::exception {
