@@ -4,11 +4,13 @@ Decimal::Decimal(const char* num) {
 	
 	if (num[0] == '-' && num[1] != '\0') (_size)++;
 	else if (Decimal::CharToDigit(num[0]) == -1) throw InvalidValue();
-
-	uint8_t dotcount = 0;
+	
 	int64_t start_insertion = 0;
 
-	while (num[start_insertion] == '0' && num[start_insertion+1] == '0' && (num[start_insertion + 1] != '.' || num[start_insertion + 1] != '\0')) start_insertion++;
+	while (num[start_insertion] == '0'  && num[start_insertion + 1] != '.' && num[start_insertion + 1] != '\0')
+		start_insertion++;
+	
+	uint8_t dotcount = 0;
 
 	while (num[_size + start_insertion] != '\0') {
 		if (num[_size + start_insertion] == '.') {
@@ -19,7 +21,7 @@ Decimal::Decimal(const char* num) {
 		(_size)++;
 	}
 
-	if (num[_size + start_insertion - 1] == '0' && dotcount > 0) {
+	if (dotcount > 0 && num[_size + start_insertion - 1] == '0') {
 		for (int64_t i = _size + start_insertion - 1; num[i] == '0'; i--) {
 			(_size)--;
 		}
@@ -37,6 +39,7 @@ Decimal::Decimal(const char* num) {
 
 Decimal::Decimal(const Decimal& other) {
 	this->_size = other._size;
+	delete[] _num;
 	this->_num = new char[this->_size+1];
 	for (int64_t i = 0; i <= this->_size; i++) this->_num[i] = other._num[i];
 }
@@ -48,8 +51,12 @@ Decimal::Decimal() {
 
 Decimal::Decimal(const char* num, const int64_t size) noexcept {
 	this->_size = size;
+	//if (this->_num != nullptr) delete[] this->_num;
+
 	this->_num = new char[size + 1];
-	for (int64_t i = 0; i <= size; i++) _num[i] = num[i];
+	this->_num[size] = '\0';
+
+	for (int64_t i = 0; i < size; i++) _num[i] = num[i];
 }
 
 Decimal::~Decimal() {
@@ -66,6 +73,7 @@ std::istream& operator >> (std::istream& istream, Decimal& num) noexcept {
 	for (char ch; istream.get(ch) && ch != '\n'; chars.push_back(ch));
 	
 	Decimal result;
+	delete[] result._num;
 	result._num = new char[chars.size() + 1];
 	result._size = chars.size();
 
@@ -83,9 +91,7 @@ std::istream& operator >> (std::istream& istream, Decimal& num) noexcept {
 }
 
 const Decimal& Decimal::operator=(const Decimal& other) noexcept {
-	if (this != nullptr) {
-		delete[] this->_num;
-	}
+	if (this->_num != nullptr) delete[] this->_num;
 
 	this->_size = other._size;
 	this->_num = new char[this->_size+1];
@@ -110,6 +116,28 @@ Decimal Decimal::pow(const uint16_t& n) noexcept
 	}
 	return result;
 
+}
+
+Decimal Decimal::IntToDecimal(int64_t num) noexcept
+{
+	Decimal temp;
+
+	if (num == 0) {
+		temp.AddDigit('0');
+		return temp;
+	}
+
+	if (num < 0) {
+		num = std::abs(num);
+		temp._is_negative = true;
+	}
+
+	while (num > 0) {
+		temp.AddDigit(Decimal::DigitToChar(num % 10));
+		num /= 10;
+	}
+
+	return temp;
 }
 
 Decimal Decimal::operator +(Decimal& other) noexcept {
@@ -218,10 +246,10 @@ Decimal Decimal::operator +(Decimal& other) noexcept {
 			intpart.push_back(DigitToChar(result % 10));
 		}
 
-		int64_t size = intpart.size() + fracpart.size() + 1; // 1 for '\0'
+		int64_t size = intpart.size() + fracpart.size(); // for '\0'
 
 		if (fracpart.size() > 0) size++; // for '.'
-		char* num = new char[size];
+		char* num = new char[size + 1];
 
 		for (i = intpart.size() - 1; i > -1; i--, index++) num[index] = intpart[i];
 
@@ -231,15 +259,20 @@ Decimal Decimal::operator +(Decimal& other) noexcept {
 			for (i = fracpart.size() - 1; i > -1; i--, index++) num[index] = fracpart[i];
 		}
 
-		num[index] = '\0';
+		num[size] = '\0';
 
-		return Decimal(num);
+		return Decimal(num, size);
 	}
 }
 
 void Decimal::operator += (Decimal& other) noexcept
 {
-	*this = Decimal(*this + other);
+	*this = *this + other;
+}
+
+void Decimal::operator-=(Decimal& other) noexcept
+{
+	*this = *this - other;
 }
 
 Decimal Decimal::operator - (Decimal& other) noexcept {
@@ -286,7 +319,7 @@ Decimal Decimal::operator - (Decimal& other) noexcept {
 		int64_t start2 = 0;
 		int64_t end1 = 0;
 		int64_t end2 = 0;
-		uint8_t result = 0;
+		int8_t result = 0;
 		int64_t index = 0;
 		int64_t dotpos1 = this->find('.');
 		int64_t dotpos2 = other.find('.');
@@ -390,7 +423,12 @@ Decimal Decimal::operator - (Decimal& other) noexcept {
 
 Decimal Decimal::operator * (Decimal& other) noexcept
 {
+	if (other._num[0] == '0' && other._size == 1 || this->_num[0] == '0' && this->_size == 1) return Decimal("0", 1); // a * 0 = 0
+	else if (other._num[0] == '1' && other._size == 1) return Decimal(*this);										  // a * 1 = a
+	else if (this->_num[0] == '1' && this->_size == 1) return Decimal(other);										  // 1 * b = b
+
 	Decimal sum("0", 1);
+	Decimal zero("0", 1);
 	int64_t second_digit_capacity = other._size - 1;
 	uint8_t carryover = 0;
 	std::vector<char> line_result;
@@ -398,10 +436,9 @@ Decimal Decimal::operator * (Decimal& other) noexcept
 	Decimal temp;
 	int64_t dotpos1 = this->find('.');
 	int64_t dotpos2 = other.find('.');
-	int64_t decimal_place = 0;
+	int64_t decimal_place = 0; // signs after '.'
 	int64_t intpart = 0;
 	int64_t fracpart = 0;
-	bool contain_fracpart = false;
 
 	if (dotpos1 != -1) decimal_place += this->_size - dotpos1 - 1;
 	if (dotpos2 != -1) {
@@ -411,9 +448,11 @@ Decimal Decimal::operator * (Decimal& other) noexcept
 
 	for (int64_t index_other = 0, other_size = other._size; index_other < other_size; index_other++, second_digit_capacity--) {
 		if (other._num[index_other] == '.') {
-			second_digit_capacity++;
+			second_digit_capacity++; // avoid unwanted decrement
 			continue;
 		}
+
+		if (other._num[index_other] == '0' && sum > zero) continue;
 
 		for (int64_t i = 0; i < second_digit_capacity; i++) line_result.push_back('0');
 		
@@ -443,7 +482,7 @@ Decimal Decimal::operator * (Decimal& other) noexcept
 
 	if (decimal_place > 0) {
 		fracpart = decimal_place;
-		// Checking zeros after dot
+		// Checking zeros after '.'
 		for (int64_t i = 0; i < decimal_place; i++) {
 			if (sum._num[sum._size - i - 1] == '0') {
 				fracpart--;
@@ -455,7 +494,7 @@ Decimal Decimal::operator * (Decimal& other) noexcept
 	char* num = new char[size + 1];
 
 	if (fracpart > 0) {
-		size++; // for dot
+		size++; // for '.'
 		for (int64_t i = 0; i < intpart; i++) num[i] = sum._num[i];
 		num[size - fracpart - 1] = '.';
 		for (int64_t i = size - fracpart; i < size; i++) num[i] = sum._num[i - 1];
@@ -464,22 +503,90 @@ Decimal Decimal::operator * (Decimal& other) noexcept
 	else for (int64_t i = 0; i < size; i++) num[i] = sum._num[i];
 	num[size] = '\0';
 
-	return Decimal(num, size);
+	return Decimal(num);
+}
+
+inline void Decimal::AddDigit(const char& digit) noexcept {
+	this->_size++;
+
+	char* result = new char[this->_size + 1];
+	result[this->_size - 1] = digit;
+	result[this->_size] = '\0';
+
+	for (int64_t i = 0; i < this->_size-1; i++) result[i] = this->_num[i];
+
+	delete[] this->_num;
+	this->_num = new char[this->_size + 1];
+	for (int64_t i = 0; i <= this->_size; i++) this->_num[i] = result[i];
+	delete[] result;
 }
 
 Decimal Decimal::operator / (Decimal& other) noexcept
 {
 	if (other._num[0] == '0' && other._size == 1) throw InvalidValue();
+	else if (other._num[0] == '1' && other._size == 1) return Decimal(*this); // a / 1 = a
+
 	Decimal ten("10", 2);
+
 	while (other.find('.') != -1) {
 		*this = *this * ten;
-		other = other * ten;
-		std::cout << "this: " << *this << std::endl;
-		std::cout << "other: " << other << std::endl;
+		other = other * ten; // other is divisor
 	}
 	
+	bool contain_dot = false;
+	int64_t quotient = 0;
+	int64_t start = 1;
+	Decimal divisible(this->_num, start);
+	std::vector<char> result;
+	if (other._size <= this->_size) // find first num to divide
+		while (divisible < other && start < this->_size) divisible = Decimal(this->_num, ++start);
+	else {							// if divisor is bigger than whole num
+		divisible = *this;
+		divisible.AddDigit('0');
+		result.push_back('0');
+		result.push_back('.');
+		contain_dot = true;
+	}
 
-	return Decimal();
+	Decimal mod = divisible;
+
+	for (int64_t i = start; mod > 0 && i < this->_size + 5; i++) {
+		
+		if (divisible < other && this->_num[i] != '.') {
+			divisible.AddDigit('0');
+			result.push_back('0');
+		}
+
+		else if (!contain_dot && this->_num[i] == '.') {
+			result.push_back('.');
+			contain_dot = true;
+			continue;
+		}
+
+		else {
+			quotient = 0;
+			mod = divisible;
+
+			while (mod >= other) {
+				mod -= other;
+				quotient++;
+			}
+			divisible = mod;
+
+			result.push_back(Decimal::DigitToChar(quotient));
+
+			if (i < this->_size)
+				divisible.AddDigit(this->_num[i]);
+		}
+	}
+	
+	char* temp = new char[result.size() + 1];
+	temp[result.size()] = '\0';
+
+	for (int64_t i = 0; i < result.size(); i++) temp[i] = result[i];
+
+	return Decimal(temp, result.size());
+	
 }
 
 bool Decimal::operator < (Decimal& other) noexcept {
@@ -562,6 +669,13 @@ bool Decimal::operator < (Decimal& other) noexcept {
 
 		return result;
 	}
+}
+
+bool Decimal::operator<(int64_t num) noexcept
+{
+	Decimal temp = Decimal::IntToDecimal(num);
+	if (*this < temp) return true;
+	return false;
 }
 
 bool Decimal::operator > (Decimal& other) noexcept {
@@ -647,12 +761,32 @@ bool Decimal::operator > (Decimal& other) noexcept {
 	
 }
 
+bool Decimal::operator>(int64_t num) noexcept
+{
+	Decimal temp = Decimal::IntToDecimal(num);
+	if (*this > temp) return true;
+	return false;
+}
+
 bool Decimal::operator == (Decimal& other) noexcept {
 	if (this->_size != other._size) return false;
 	for (int64_t right = this->_size - 1, left = 0; right >= left; left++, right--) {
 		if (this->_num[left] != other._num[left] || this->_num[right] != other._num[right]) return false;
 	}
 	return true;
+}
+
+inline bool Decimal::operator == (int64_t num) noexcept
+{
+	Decimal temp = Decimal::IntToDecimal(num);
+	if (*this == temp) return true;
+	return false;
+}
+
+inline bool Decimal::operator >= (Decimal& other) noexcept
+{
+	if (*this > other || *this == other) return true;
+	return false;
 }
 
 inline constexpr int8_t Decimal::CharToDigit(const char& ch) noexcept {
