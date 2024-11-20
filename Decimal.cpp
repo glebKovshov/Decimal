@@ -527,57 +527,86 @@ Decimal Decimal::operator / (Decimal& other) noexcept
 	else if (other._num[0] == '1' && other._size == 1) return Decimal(*this); // a / 1 = a
 
 	Decimal ten("10", 2);
+	Decimal divisible = Decimal(*this);
+	Decimal divisor = Decimal(other);
 
-	while (other.find('.') != -1) {
-		*this = *this * ten;
-		other = other * ten; // other is divisor
+	while (divisor.find('.') != -1) {
+		divisible = divisible * ten;
+		divisor = divisor * ten;
 	}
 	
 	bool contain_dot = false;
-	int64_t quotient = 0;
+	uint8_t quotient = 0;
 	int64_t start = 1;
-	Decimal divisible(this->_num, start);
+	Decimal divpart = Decimal(divisible._num, start);
 	std::vector<char> result;
-	if (other._size <= this->_size) // find first num to divide
-		while (divisible < other && start < this->_size) divisible = Decimal(this->_num, ++start);
-	else {							// if divisor is bigger than whole num
-		divisible = *this;
-		divisible.AddDigit('0');
+
+	if (divisor > divisible) {
 		result.push_back('0');
 		result.push_back('.');
 		contain_dot = true;
 	}
 
-	Decimal mod = divisible;
+	while (divpart < divisor && start < divisible._size) {
+		if (divisible._num[start] != '.') divpart.AddDigit(divisible._num[start]);
+		start++;
+	}
 
-	for (int64_t i = start; mod > 0 && i < this->_size + 5; i++) {
-		
-		if (divisible < other && this->_num[i] != '.') {
-			divisible.AddDigit('0');
+	if (divpart < divisor) {
+		divpart.AddDigit('0');
+		if (!contain_dot) {
 			result.push_back('0');
-		}
-
-		else if (!contain_dot && this->_num[i] == '.') {
 			result.push_back('.');
 			contain_dot = true;
-			continue;
+		}
+		while (divpart < divisor) divpart.AddDigit('0');
+	}
+	
+	Decimal mod;
+	
+	for (int64_t i = start; divpart > 0 && i < divisible._size + 20;) {
+		quotient = 0;
+		mod = divpart;
+
+		while (mod >= divisor) {
+			mod -= divisor;
+			quotient++;
 		}
 
-		else {
-			quotient = 0;
-			mod = divisible;
+		divpart = mod;
+		if (divpart._num[0] == '0' && divpart._size == 1 && i < divisible._size) {
+			delete[] divpart._num;
+			divpart._num = new char[1];
+			divpart._num[0] = '\0';
+			divpart._size = 0;
+		}
 
-			while (mod >= other) {
-				mod -= other;
-				quotient++;
+		result.push_back(Decimal::DigitToChar(quotient));
+
+		while (divpart < divisor && i < divisible._size) {
+			if (divisible._num[i] != '.') divpart.AddDigit(divisible._num[i]);
+			else {
+				result.push_back('.');
+				contain_dot = true;
 			}
-			divisible = mod;
-
-			result.push_back(Decimal::DigitToChar(quotient));
-
-			if (i < this->_size)
-				divisible.AddDigit(this->_num[i]);
+			i++;
 		}
+
+		if (i >= divisible._size && divpart < divisor && divpart > 0) {
+			if (!contain_dot) {
+				result.push_back('.');
+				contain_dot = true;
+			}
+			if (i == divisible._size) result.push_back('0');
+			divpart.AddDigit('0');
+			i++;
+			while (divpart < divisor && i < divisible._size + 20) {
+				divpart.AddDigit('0');
+				result.push_back('0');
+				i++;
+			}
+		}
+
 	}
 	
 	char* temp = new char[result.size() + 1];
@@ -610,14 +639,14 @@ bool Decimal::operator < (Decimal& other) noexcept {
 		int64_t end1 = 0;
 		int64_t end2 = 0;
 		bool result = false;
-		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1 - 1; 
-		if (dotpos2 != -1) fraclen2 = other._size - dotpos2 - 1;
+		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1; 
+		if (dotpos2 != -1) fraclen2 = other._size - dotpos2;
 
-		if (this->_size - fraclen1 < other._size - fraclen2) return true;		// int part of second num bigger than second
-		else if (this->_size - fraclen1 > other._size - fraclen2) return false;	// int part of first num bigger than second
-																				// equals
+		if (this->_size - fraclen1 < other._size - fraclen2) return true;		// int part of the second num bigger than the first
+		else if (this->_size - fraclen1 > other._size - fraclen2) return false;	// int part of the first num bigger than the second
+																				// equals by int part size
 		if (fraclen1 > fraclen2) {
-			start1 = this->_size - (fraclen1 - fraclen2) - 1;
+			start1 = this->_size - (fraclen1 - fraclen2) - 2;
 			end1 = dotpos1;
 			if (dotpos2 == -1) {
 				end2 = other._size - 1;
@@ -629,7 +658,7 @@ bool Decimal::operator < (Decimal& other) noexcept {
 		}
 		else if (fraclen1 < fraclen2) {
 			result = true;
-			start2 = other._size - (fraclen2 - fraclen1) - 1;
+			start2 = other._size - (fraclen2 - fraclen1) - 2;
 			end2 = dotpos2;
 			if (dotpos1 == -1) {
 				end1 = this->_size - 1;
@@ -662,7 +691,7 @@ bool Decimal::operator < (Decimal& other) noexcept {
 
 		while (end1 > -1) {
 			if (Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2])) result = true;
-			else if (Decimal::CharToDigit(this->_num[start1]) > Decimal::CharToDigit(other._num[start2])) result = false;
+			else if (Decimal::CharToDigit(this->_num[end1]) > Decimal::CharToDigit(other._num[end2])) result = false;
 			end1--;
 			end2--;
 		}
@@ -671,7 +700,7 @@ bool Decimal::operator < (Decimal& other) noexcept {
 	}
 }
 
-bool Decimal::operator<(int64_t num) noexcept
+bool Decimal::operator < (int64_t num) noexcept
 {
 	Decimal temp = Decimal::IntToDecimal(num);
 	if (*this < temp) return true;
@@ -699,12 +728,15 @@ bool Decimal::operator > (Decimal& other) noexcept {
 		int64_t end1 = 0;
 		int64_t end2 = 0;
 		bool result = false;
-		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1 - 1; 
-		if (dotpos2 != -1) fraclen2 = other._size - dotpos2 - 1;
+		if (dotpos1 != -1) fraclen1 = this->_size - dotpos1;
+		if (dotpos2 != -1) fraclen2 = other._size - dotpos2;
 
 		if (this->_size - fraclen1 > other._size - fraclen2) return true;		// int part of first num bigger than second
 		else if (this->_size - fraclen1 < other._size - fraclen2) return false; // int part of second num bigger than first
-																				// equals
+																				// equals by int part size
+		if (fraclen1 > 0) fraclen1--;
+		if (fraclen2 > 0) fraclen2--;
+
  		if (fraclen1 > fraclen2) {
 			result = true;
 			start1 = this->_size - (fraclen1 - fraclen2) - 1;
@@ -741,7 +773,7 @@ bool Decimal::operator > (Decimal& other) noexcept {
 
 		while (start1 > end1 && start1 > 0 && start2 > end2 && start2 > 0) {
 			if (Decimal::CharToDigit(this->_num[start1]) > Decimal::CharToDigit(other._num[start2])) result = true;
-			else if ((Decimal::CharToDigit(this->_num[end1]) < Decimal::CharToDigit(other._num[end2]))) result = false;
+			else if ((Decimal::CharToDigit(this->_num[start1]) < Decimal::CharToDigit(other._num[start2]))) result = false;
 			start1--;
 			start2--;
 		}
