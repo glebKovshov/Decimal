@@ -5,9 +5,10 @@
 
 class Decimal {
 private:
-	char* _num;
+	char* _num = nullptr;
 	int64_t _size = 0;
 	bool _is_negative = false;
+	uint16_t precision = 25;
 
 	inline constexpr int8_t CharToDigit(const char& ch) noexcept;
 	inline constexpr char DigitToChar(const uint8_t& digit) noexcept;
@@ -28,7 +29,7 @@ public:
 	void operator -= (Decimal& other) noexcept;
 	Decimal operator - (Decimal& other) noexcept;
 	Decimal operator * (Decimal& other) noexcept;
-	Decimal operator / (Decimal& other) noexcept;
+	Decimal operator / (Decimal& other);
 	const Decimal& operator = (const Decimal& num) noexcept;
 	bool operator < (Decimal& other) noexcept;
 	bool operator < (int64_t num) noexcept;

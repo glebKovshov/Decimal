@@ -27,7 +27,7 @@ Decimal::Decimal(const char* num) {
 		}
 	}
 
-	if (num[_size - 1] == '.') (_size)--;
+	if (num[_size + start_insertion - 1] == '.') (_size)--;
 	
 	_num = new char[_size + 1];
 	_num[_size] = '\0';
@@ -39,7 +39,7 @@ Decimal::Decimal(const char* num) {
 
 Decimal::Decimal(const Decimal& other) {
 	this->_size = other._size;
-	delete[] _num;
+	if (this->_num != nullptr) delete[] _num;
 	this->_num = new char[this->_size+1];
 	for (int64_t i = 0; i <= this->_size; i++) this->_num[i] = other._num[i];
 }
@@ -90,7 +90,7 @@ std::istream& operator >> (std::istream& istream, Decimal& num) noexcept {
 	return istream;
 }
 
-const Decimal& Decimal::operator=(const Decimal& other) noexcept {
+const Decimal& Decimal::operator = (const Decimal& other) noexcept {
 	if (this->_num != nullptr) delete[] this->_num;
 
 	this->_size = other._size;
@@ -521,19 +521,21 @@ inline void Decimal::AddDigit(const char& digit) noexcept {
 	delete[] result;
 }
 
-Decimal Decimal::operator / (Decimal& other) noexcept
+Decimal Decimal::operator / (Decimal& other)
 {
-	if (other._num[0] == '0' && other._size == 1) throw InvalidValue();
-	else if (other._num[0] == '1' && other._size == 1) return Decimal(*this); // a / 1 = a
-
+	if (other == 0) throw InvalidValue();
+	
 	Decimal ten("10", 2);
-	Decimal divisible = Decimal(*this);
-	Decimal divisor = Decimal(other);
+	Decimal divisible = *this;
+	Decimal divisor = other;
 
 	while (divisor.find('.') != -1) {
 		divisible = divisible * ten;
 		divisor = divisor * ten;
 	}
+
+	if (divisor == 1) return Decimal(divisible);	 // a / 1 = a
+	else if (divisible == 0) return Decimal("0", 1); // 0 / a = 0
 	
 	bool contain_dot = false;
 	uint8_t quotient = 0;
@@ -541,30 +543,30 @@ Decimal Decimal::operator / (Decimal& other) noexcept
 	Decimal divpart = Decimal(divisible._num, start);
 	std::vector<char> result;
 
-	if (divisor > divisible) {
-		result.push_back('0');
-		result.push_back('.');
-		contain_dot = true;
-	}
-
 	while (divpart < divisor && start < divisible._size) {
 		if (divisible._num[start] != '.') divpart.AddDigit(divisible._num[start]);
-		start++;
-	}
-
-	if (divpart < divisor) {
-		divpart.AddDigit('0');
-		if (!contain_dot) {
+		else {
 			result.push_back('0');
 			result.push_back('.');
 			contain_dot = true;
 		}
-		while (divpart < divisor) divpart.AddDigit('0');
+		start++;
+	}
+	
+	if (divisible < divisor && !contain_dot) {
+		result.push_back('0');
+		result.push_back('.');
+		contain_dot = true;
+		divpart.AddDigit('0');
+		while (divpart < divisor) {
+			divpart.AddDigit('0');
+			result.push_back('0');
+		}
 	}
 	
 	Decimal mod;
 	
-	for (int64_t i = start; divpart > 0 && i < divisible._size + 20;) {
+	for (int64_t i = start, size = divisible._size + 50; i < size;) {
 		quotient = 0;
 		mod = divpart;
 
@@ -574,33 +576,45 @@ Decimal Decimal::operator / (Decimal& other) noexcept
 		}
 
 		divpart = mod;
-		if (divpart._num[0] == '0' && divpart._size == 1 && i < divisible._size) {
+
+		result.push_back(Decimal::DigitToChar(quotient));
+
+		if (divpart._num[0] == '0' && divpart._size == 1) {
+			if (i >= divisible._size) break;
+			//result.push_back('0');
 			delete[] divpart._num;
 			divpart._num = new char[1];
 			divpart._num[0] = '\0';
 			divpart._size = 0;
 		}
 
-		result.push_back(Decimal::DigitToChar(quotient));
-
-		while (divpart < divisor && i < divisible._size) {
-			if (divisible._num[i] != '.') divpart.AddDigit(divisible._num[i]);
-			else {
+		if (divpart < divisor && i < divisible._size) {
+			if (divisible._num[i] == '.' && !contain_dot) {
 				result.push_back('.');
 				contain_dot = true;
+				i++;
 			}
+			divpart.AddDigit(divisible._num[i]);
 			i++;
+			while (divpart < divisor && i < divisible._size) {
+				if (divisible._num[i] != '.') divpart.AddDigit(divisible._num[i]);
+				else if (!contain_dot) {
+					result.push_back('.');
+					contain_dot = true;
+				}
+				result.push_back('0');
+				i++;
+			}
 		}
 
-		if (i >= divisible._size && divpart < divisor && divpart > 0) {
+		if (i >= divisible._size && divpart < divisor) {
 			if (!contain_dot) {
 				result.push_back('.');
 				contain_dot = true;
 			}
-			if (i == divisible._size) result.push_back('0');
 			divpart.AddDigit('0');
 			i++;
-			while (divpart < divisor && i < divisible._size + 20) {
+			while (divpart < divisor && i < size) {
 				divpart.AddDigit('0');
 				result.push_back('0');
 				i++;
