@@ -40,11 +40,18 @@ Decimal::Decimal(const char* num) {
 	}
 }
 
-Decimal::Decimal(const Decimal& other) {
+Decimal::Decimal(const Decimal& other, bool is_negative) {
 	if (this->_num != nullptr) delete[] _num;
-
 	this->_size = other._size;
 	this->_num = new char[this->_size+1];
+	if (is_negative) this->_is_negative = true;
+	for (int64_t i = 0; i <= this->_size; i++) this->_num[i] = other._num[i];
+}
+
+Decimal::Decimal(const Decimal& other) {
+	if (this->_num != nullptr) delete[] _num;
+	this->_size = other._size;
+	this->_num = new char[this->_size + 1];
 	if (other._is_negative) this->_is_negative = true;
 	for (int64_t i = 0; i <= this->_size; i++) this->_num[i] = other._num[i];
 }
@@ -109,13 +116,6 @@ const Decimal& Decimal::operator = (const Decimal& other) noexcept {
 	return *this;
 }
 
-Decimal Decimal::abs(const Decimal& other) noexcept {
-	if (!other._is_negative) return Decimal(other);
-	char* num = new char[other._size - 1];
-	for (int64_t i = 0; i <= other._size - 1; i++) num[i] = other._num[i + 1];
-	return Decimal(num);
-}
-
 inline void int_pow(Decimal& result, Decimal& multipier, const uint32_t& n) {
 	#pragma omp parallel for
 	for (uint32_t i = 0; i < n; i++) {
@@ -162,7 +162,7 @@ Decimal Decimal::IntToDecimal(int64_t num) noexcept
 	return temp;
 }
 
-Decimal Decimal::addition(Decimal& other) noexcept {
+Decimal Decimal::addition(Decimal other) noexcept {
 	std::vector<char> fracpart;
 	std::vector<char> intpart;
 	uint8_t carryover = 0;
@@ -264,14 +264,12 @@ Decimal Decimal::addition(Decimal& other) noexcept {
 	return Decimal(num, size);
 }
 
-Decimal Decimal::operator +(Decimal other) noexcept {
+Decimal Decimal::operator + (Decimal other) noexcept {
 	if (this->_is_negative && !other._is_negative) {      // -a + b = b - a;
-		this->_is_negative = false;
-		return other - *this;
+		return other - Decimal(*this, false);
 	}
 	else if (!this->_is_negative && other._is_negative) { // a + (-b) = a - b
-		other._is_negative = false;
-		return (*this).subtraction(other);
+		return *this - Decimal(other, false);
 	}
 	else if (this->_num[0] == '-' && other._num[0] == '-') { // -a + (-b) = -a - b = -(a+b)
 		Decimal result = this->Decimal::addition(other);
@@ -292,7 +290,7 @@ void Decimal::operator-=(Decimal& other) noexcept
 	*this = this->Decimal::subtraction(other);
 }
 
-Decimal Decimal::subtraction(Decimal& other) noexcept {
+Decimal Decimal::subtraction(Decimal other) noexcept {
 	std::vector<char> fracpart;
 	std::vector<char> intpart;
 	uint8_t borrow = 0;
@@ -404,26 +402,21 @@ Decimal Decimal::subtraction(Decimal& other) noexcept {
 }
 
 Decimal Decimal::operator - (Decimal other) noexcept {
-
 	if (other._is_negative && !this->_is_negative) { // a - (-b) = a + b
-		other._is_negative = false;
-		return this->addition(other);
+		return this->addition(Decimal(other, false));
 	}
 
-	else if (this->_is_negative && other._is_negative) { // -a - b = -(a+b)
-		this->_is_negative = false;
-		other._is_negative = false;
-		Decimal result = this->addition(other);
+	else if (this->_is_negative && !other._is_negative) { // -a - b = -(a+b)
+		Decimal result = Decimal(*this).addition(other);
 		result._is_negative = true;
 
 		return result;
 	}
 
 	else if (this->_is_negative && other._is_negative) { // -a - (-b) = b - a
-		other._is_negative = false;
-		return other.subtraction(*this);
+		return Decimal(other, false).subtraction(Decimal(*this, false));
 	}
-	else if (other > *this) {						   // a - b = -(b-a) : b > a
+	else if (other > *this) {							 // a - b = -(b-a) : b > a
 		Decimal result = other.subtraction(*this);
 		result._is_negative = true;
 
@@ -535,7 +528,7 @@ inline void Decimal::AddDigit(const char& digit) noexcept {
 	delete[] result;
 }
 
-Decimal Decimal::operator / (Decimal& other)
+Decimal Decimal::operator / (Decimal& other) 
 {
 	if (other == 0) throw InvalidValue();
 	
@@ -650,8 +643,8 @@ bool Decimal::operator < (Decimal& other) noexcept {
 	if (this->_num[0] == '-' && other._num[0] != '-') return true;			// first - negative, second - non negative
 	else if (this->_num[0] != '-' && other._num[0] == '-') return false;	// first - non negative, second - negative
 	else if (this->_num[0] != '-' && other._num[0] == '-') {			    //both negative
-		Decimal absthis = Decimal::abs(*this);
-		Decimal absother = Decimal::abs(other);
+		Decimal absthis = Decimal(*this, false);
+		Decimal absother = Decimal(other, false);
 
 		if (absthis < absother) return false;
 		return true;

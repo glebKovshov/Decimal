@@ -17,11 +17,12 @@ private:
 	friend std::istream& operator >> (std::istream& istream, Decimal& num) noexcept;
 	inline void AddDigit(const char& digit) noexcept;
 	Decimal(const char* num, const int64_t size, bool is_negative = false) noexcept;
-	Decimal addition(Decimal& other) noexcept;
-	Decimal subtraction(Decimal& other) noexcept;
+	Decimal addition(Decimal other) noexcept;
+	Decimal subtraction(Decimal other) noexcept;
 	
 public:
 	Decimal(const char* num);
+	Decimal(const Decimal& other, bool is_negative);
 	Decimal(const Decimal& other);
 	Decimal();
 	~Decimal();
@@ -40,7 +41,6 @@ public:
 	bool operator == (Decimal& other) noexcept;
 	bool operator == (int64_t num) noexcept;
 	bool operator >= (Decimal& other) noexcept;
-	static Decimal abs(const Decimal& other) noexcept;
 	Decimal pow(const uint32_t& n) noexcept;
 	Decimal IntToDecimal(int64_t num) noexcept;
 };
