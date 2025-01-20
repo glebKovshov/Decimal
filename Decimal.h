@@ -2,6 +2,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <HashTable.h>
 
 class Decimal {
 private:
@@ -9,6 +10,7 @@ private:
 	int64_t _size = 0;
 	bool _is_negative = false;
 	uint16_t precision = 50;
+
 
 	inline constexpr int8_t CharToDigit(const char& ch) noexcept;
 	inline constexpr char DigitToChar(const uint8_t& digit) noexcept;

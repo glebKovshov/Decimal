@@ -431,11 +431,10 @@ Decimal Decimal::operator - (Decimal other) noexcept {
 Decimal Decimal::operator * (Decimal& other) noexcept
 {
 	if (other._num[0] == '0' && other._size == 1 || this->_num[0] == '0' && this->_size == 1) return Decimal("0", 1); // a * 0 = 0
-	else if (other._num[0] == '1' && other._size == 1) return Decimal(*this);										  // a * 1 = a
-	else if (this->_num[0] == '1' && this->_size == 1) return Decimal(other);										  // 1 * b = b
+	else if (other == 1) return Decimal(*this);										  // a * 1 = a
+	else if (*this == 1) return Decimal(other);										  // 1 * b = b
 
 	Decimal sum("0", 1);
-	Decimal zero("0", 1);
 	int64_t second_digit_capacity = other._size - 1;
 	uint8_t carryover = 0;
 	std::vector<char> line_result;
@@ -459,7 +458,7 @@ Decimal Decimal::operator * (Decimal& other) noexcept
 			continue;
 		}
 
-		if (other._num[index_other] == '0' && sum > zero) continue;
+		if (other._num[index_other] == '0' && sum > 0) continue;
 
 		for (int64_t i = 0; i < second_digit_capacity; i++) line_result.push_back('0');
 		
@@ -478,7 +477,11 @@ Decimal Decimal::operator * (Decimal& other) noexcept
 		temp._size = line_result.size();
 		temp._num = new char[temp._size + 1];
 
-		for (int64_t index_vec = line_result.size() - 1, index_ch = 0; index_vec > -1; index_vec--, index_ch++) temp._num[index_ch] = line_result[index_vec];
+		for (int64_t index_vec = line_result.size() - 1, index_ch = 0; index_vec > -1; index_vec--, index_ch++) {
+			temp._num[index_ch] = line_result[index_vec];
+			std::cout << line_result[index_vec];
+		}
+		std::cout << std::endl;
 		temp._num[temp._size] = '\0';
 
 		line_result = {};
@@ -524,8 +527,7 @@ inline void Decimal::AddDigit(const char& digit) noexcept {
 
 	delete[] this->_num;
 	this->_num = new char[this->_size + 1];
-	for (int64_t i = 0; i <= this->_size; i++) this->_num[i] = result[i];
-	delete[] result;
+	this->_num = result;
 }
 
 Decimal Decimal::operator / (Decimal& other) 
@@ -839,38 +841,11 @@ inline bool Decimal::operator >= (Decimal& other) noexcept
 }
 
 inline constexpr int8_t Decimal::CharToDigit(const char& ch) noexcept {
-	switch (ch)
-	{
-	case '0': return 0;
-	case '1': return 1;
-	case '2': return 2;
-	case '3': return 3;
-	case '4': return 4;
-	case '5': return 5;
-	case '6': return 6;
-	case '7': return 7;
-	case '8': return 8;
-	case '9': return 9;
-	default:
-		return -1;
-	}
+	return (ch >= '0' && ch <= '9') ? (ch - '0') : -1;
 }
 
 inline constexpr char Decimal::DigitToChar(const uint8_t& digit) noexcept {
-	switch (digit) {
-	case 0: return '0';
-	case 1: return '1';
-	case 2: return '2';
-	case 3: return '3';
-	case 4: return '4';
-	case 5: return '5';
-	case 6: return '6';
-	case 7: return '7';
-	case 8: return '8';
-	case 9: return '9';
-	default:
-		return ' ';
-	}
+	return (digit <= 9) ? ('0' + digit) : ' ';
 }
 
 inline constexpr int64_t Decimal::find(const char& ch) const noexcept {
